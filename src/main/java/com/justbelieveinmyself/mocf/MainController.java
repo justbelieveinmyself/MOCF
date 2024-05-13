@@ -157,9 +157,9 @@ public class MainController {
 
         SimplexSolver solver = new SimplexSolver(coefficients, bValues, constraints, objectiveFunction, optimizationGoal);
 
-        double[] solution = solver.solve();
+//        double[] solution = solver.solve();
 
-        if (solution == null) {
+/*        if (solution == null) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Ошибка");
             alert.setHeaderText(null);
@@ -175,7 +175,7 @@ public class MainController {
             alert.setHeaderText(null);
             alert.setContentText(result.toString());
             alert.showAndWait();
-        }
+        }*/
     }
 
 
