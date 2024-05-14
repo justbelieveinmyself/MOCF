@@ -18,100 +18,109 @@ public class SimplexSolver {
         this.optimizationGoal = optimizationGoal;
     }
 
-    public void convertToStandardForm() {
-        int slackVariablesCount = 0;
+
+    private void toStandardForm() {
+        // Добавление искусственных переменных для неравенств
+        int numSlackVariables = 0;
         for (Constraint constraint : constraints) {
-            if (constraint == Constraint.LESS_THAN_OR_EQUAL_TO_ZERO || constraint == Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO) {
-                slackVariablesCount++;
+            if (constraint == Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO) {
+                numSlackVariables++;
             }
         }
 
-        int newColumns = coefficients[0].length + slackVariablesCount;
-        double[][] newCoefficients = new double[coefficients.length][newColumns];
-        double[] newBValues = Arrays.copyOf(bValues, bValues.length);
-
+        int numVariables = coefficients[0].length;
+        double[][] newCoefficients = new double[coefficients.length][numVariables + numSlackVariables];
         for (int i = 0; i < coefficients.length; i++) {
             System.arraycopy(coefficients[i], 0, newCoefficients[i], 0, coefficients[i].length);
-            for (int j = coefficients[i].length; j < newColumns; j++) {
-                if (j - coefficients[i].length == i && (constraints[i] == Constraint.LESS_THAN_OR_EQUAL_TO_ZERO || constraints[i] == Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO)) {
-                    newCoefficients[i][j] = 1;
-                } else {
-                    newCoefficients[i][j] = 0;
-                }
+        }
+
+        int slackVarIndex = numVariables;
+        for (int i = 0; i < constraints.length; i++) {
+            if (constraints[i] == Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO) {
+                newCoefficients[i][slackVarIndex] = 1;
+                slackVarIndex++;
             }
         }
 
         coefficients = newCoefficients;
-        bValues = newBValues;
 
-        if (optimizationGoal == OptimizationGoal.MINIMIZE) {
-            for (int i = 0; i < objectiveFunction.length; i++) {
-                objectiveFunction[i] *= -1;
-            }
+        // Обновление целевой функции для искусственных переменных
+        double[] newObjectiveFunction = Arrays.copyOf(objectiveFunction, numVariables + numSlackVariables);
+        objectiveFunction = newObjectiveFunction;
+        Arrays.fill(objectiveFunction, numVariables, numVariables + numSlackVariables, 0);
+
+        // Обновление базиса
+        for (int i = numVariables; i < numVariables + numSlackVariables; i++) {
+            objectiveFunction[i] = -1;
         }
     }
-
-
-
     public void solve() {
-        convertToStandardForm();
+        // Преобразование в КЗЛП
+        toStandardForm();
 
-        while (true) {
-            if (isOptimal()) {
-                break;
-            }
-
-            int pivotColumn = findPivotColumn();
+        // Применение симплекс-метода
+        while (!isOptimal()) {
+            // Определение новой базисной переменной
+            int pivotColumn = getPivotColumn();
             if (pivotColumn == -1) {
-                System.out.println("Задача не ограничена");
+                System.out.println("Решение не существует.");
                 return;
             }
 
-            int pivotRow = findPivotRow(pivotColumn);
-
+            // Определение ведущей строки
+            int pivotRow = getPivotRow(pivotColumn);
             if (pivotRow == -1) {
-                System.out.println("Задача не ограничена");
+                System.out.println("Функция неограничена.");
                 return;
             }
 
-            updateTable(pivotRow, pivotColumn);
+            // Обновление базиса
+            updateBasis(pivotRow, pivotColumn);
         }
 
+        // Вывод результатов
         printSolution();
     }
 
-
     private boolean isOptimal() {
-        boolean isOptimal = true;
-        for (double coefficient : objectiveFunction) {
-            if (coefficient > 0) {
-                isOptimal = false;
-                break;
+        if (optimizationGoal == OptimizationGoal.MAXIMIZE) {
+            for (double coefficient : objectiveFunction) {
+                if (coefficient < 0) {
+                    return false;
+                }
+            }
+        } else if (optimizationGoal == OptimizationGoal.MINIMIZE) {
+            for (double coefficient : objectiveFunction) {
+                if (coefficient > 0) {
+                    return false;
+                }
             }
         }
-        return isOptimal;
+        return true;
     }
 
-
-
-    private int findPivotColumn() {
-        int pivotColumn = -1;
-        double maxCoefficient = optimizationGoal == OptimizationGoal.MINIMIZE ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
-        for (int i = 0; i < objectiveFunction.length; i++) {
-            if ((optimizationGoal == OptimizationGoal.MINIMIZE && objectiveFunction[i] < maxCoefficient) ||
-                    (optimizationGoal == OptimizationGoal.MAXIMIZE && objectiveFunction[i] > maxCoefficient)) {
-                maxCoefficient = objectiveFunction[i];
-                pivotColumn = i;
+    private int getPivotColumn() {
+        if (optimizationGoal == OptimizationGoal.MAXIMIZE) {
+            for (int i = 0; i < objectiveFunction.length; i++) {
+                if (objectiveFunction[i] < 0) {
+                    return i;
+                }
+            }
+        } else if (optimizationGoal == OptimizationGoal.MINIMIZE) {
+            for (int i = 0; i < objectiveFunction.length; i++) {
+                if (objectiveFunction[i] > 0) {
+                    return i;
+                }
             }
         }
-        return pivotColumn;
+        return -1;
     }
 
-
-    private int findPivotRow(int pivotColumn) {
+    private int getPivotRow(int pivotColumn) {
         int pivotRow = -1;
         double minRatio = Double.MAX_VALUE;
-        for (int i = 0; i < bValues.length; i++) {
+
+        for (int i = 0; i < coefficients.length; i++) {
             if (coefficients[i][pivotColumn] > 0) {
                 double ratio = bValues[i] / coefficients[i][pivotColumn];
                 if (ratio < minRatio) {
@@ -120,72 +129,81 @@ public class SimplexSolver {
                 }
             }
         }
+
         return pivotRow;
     }
 
-    private void updateTable(int pivotRow, int pivotColumn) {
-        double pivotElement = coefficients[pivotRow][pivotColumn];
-        double[][] newCoefficients = new double[coefficients.length][coefficients[0].length];
-        double[] newBValues = new double[bValues.length];
+    private void updateBasis(int pivotRow, int pivotColumn) {
+        // Обновление базисных переменных
+        double pivotValue = coefficients[pivotRow][pivotColumn];
+        for (int i = 0; i < coefficients[pivotRow].length; i++) {
+            coefficients[pivotRow][i] /= pivotValue;
+        }
+        bValues[pivotRow] /= pivotValue;
 
+        // Обновление остальных уравнений
         for (int i = 0; i < coefficients.length; i++) {
-            for (int j = 0; j < coefficients[i].length; j++) {
-                if (i != pivotRow && j != pivotColumn) {
-                    newCoefficients[i][j] = coefficients[i][j] - (coefficients[i][pivotColumn] * coefficients[pivotRow][j]) / pivotElement;
+            if (i != pivotRow) {
+                double factor = coefficients[i][pivotColumn];
+                for (int j = 0; j < coefficients[i].length; j++) {
+                    coefficients[i][j] -= factor * coefficients[pivotRow][j];
                 }
+                bValues[i] -= factor * bValues[pivotRow];
             }
         }
 
-        for (int i = 0; i < coefficients.length; i++) {
-            if (i != pivotRow) {
-                newCoefficients[i][pivotColumn] = 0;
-            }
-        }
-
-        for (int j = 0; j < coefficients[pivotRow].length; j++) {
-            if (j != pivotColumn) {
-                newCoefficients[pivotRow][j] = coefficients[pivotRow][j] / pivotElement;
-            }
-        }
-        newCoefficients[pivotRow][pivotColumn] = 1;
-        newBValues[pivotRow] = bValues[pivotRow] / pivotElement;
-
-        for (int i = 0; i < coefficients.length; i++) {
-            if (i != pivotRow) {
-                newBValues[i] = bValues[i] - (coefficients[i][pivotColumn] * bValues[pivotRow]) / pivotElement;
-            }
-        }
-
-        coefficients = newCoefficients;
-        bValues = newBValues;
-
-        double[] newObjectiveFunction = new double[objectiveFunction.length];
+        // Обновление целевой функции
+        double factor = objectiveFunction[pivotColumn];
         for (int i = 0; i < objectiveFunction.length; i++) {
-            if (i != pivotColumn) {
-                newObjectiveFunction[i] = objectiveFunction[i] - (objectiveFunction[pivotColumn] * coefficients[pivotRow][i]) / pivotElement;
-            }
+            objectiveFunction[i] -= factor * coefficients[pivotRow][i];
         }
-        newObjectiveFunction[pivotColumn] = objectiveFunction[pivotColumn] / pivotElement;
-
-        objectiveFunction = newObjectiveFunction;
     }
-
 
     private void printSolution() {
-        System.out.println("Оптимальное решение:");
-        for (int i = 0; i < objectiveFunction.length; i++) {
-            System.out.println("x" + (i + 1) + " = " + (i < coefficients[0].length ? bValues[i] : 0));
+        System.out.println("Оптимальное решение найдено:");
+        System.out.println("Значения переменных:");
+        for (int i = 0; i < coefficients[0].length; i++) {
+            boolean isBasic = false;
+            int basicIndex = -1;
+            for (int j = 0; j < coefficients.length; j++) {
+                if (coefficients[j][i] == 1 && bValues[j] != 0) {
+                    if (!isBasic) {
+                        isBasic = true;
+                        basicIndex = j;
+                    } else {
+                        isBasic = false;
+                        break;
+                    }
+                } else if (coefficients[j][i] != 0) {
+                    isBasic = false;
+                    break;
+                }
+            }
+            if (isBasic) {
+                System.out.println("x" + (i + 1) + " = " + (basicIndex < bValues.length - 1 ? bValues[basicIndex] : 0));
+            } else {
+                System.out.println("x" + (i + 1) + " = 0");
+            }
         }
-        double objectiveValue = optimizationGoal == OptimizationGoal.MINIMIZE ? -objectiveFunction[objectiveFunction.length - 1] : objectiveFunction[objectiveFunction.length - 1];
-        System.out.println("Значение целевой функции: " + objectiveValue);
+        System.out.println("Значение целевой функции: " + (optimizationGoal == OptimizationGoal.MAXIMIZE ? -bValues[bValues.length - 1] : bValues[bValues.length - 1]));
     }
 
+
     public static void main(String[] args) {
-        double[][] coefficients = {{4, 1}, {1, -1}};
+        // Пример использования
+        double[][] coefficients = {
+                {4, 1},
+                {1, -1}
+        };
         double[] bValues = {8, -3};
-        Constraint[] constraints = {Constraint.LESS_THAN_OR_EQUAL_TO_ZERO, Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO};
+        Constraint[] constraints = {Constraint.LESS_THAN_OR_EQUAL_TO_ZERO,
+                Constraint.GREATER_THAN_OR_EQUAL_TO_ZERO};
+
         double[] objectiveFunction = {3, 4};
-        SimplexSolver solver = new SimplexSolver(coefficients, bValues, constraints, objectiveFunction, OptimizationGoal.MAXIMIZE);
+        OptimizationGoal optimizationGoal = OptimizationGoal.MAXIMIZE;
+
+        SimplexSolver solver = new SimplexSolver(coefficients, bValues, constraints, objectiveFunction, optimizationGoal);
         solver.solve();
     }
+
 }

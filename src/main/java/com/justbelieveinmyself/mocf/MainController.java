@@ -155,7 +155,7 @@ public class MainController {
             optimizationGoal = OptimizationGoal.MAXIMIZE;
         }
 
-        SimplexSolver solver = new SimplexSolver(coefficients, bValues, constraints, objectiveFunction, optimizationGoal);
+//        SimplexSolver solver = new SimplexSolver(coefficients, bValues, constraints, objectiveFunction, optimizationGoal);
 
 //        double[] solution = solver.solve();
 
