@@ -1,44 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<GridPane xmlns="http://javafx.com/javafx"
-          xmlns:fx="http://javafx.com/fxml"
-          fx:controller="com.justbelieveinmyself.mocf.MainController">
-    <columnConstraints>
-        <ColumnConstraints />
-        <ColumnConstraints />
-        <ColumnConstraints />
-    </columnConstraints>
-    <rowConstraints>
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-        <RowConstraints />
-    </rowConstraints>
-
-    <Label text="Количество переменных:" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-    <TextField fx:id="variablesCountField" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-
-    <Label text="Количество строк (ограничений):" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-    <TextField fx:id="constraintsCountField" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-
-    <Button text="Далее" onAction="#onNextButtonClick" GridPane.columnIndex="1" GridPane.rowIndex="2"/>
-
-    <GridPane fx:id="tableGridPane" GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="3"/>
-
-    <Label text="Ограничения по переменным x:" GridPane.columnIndex="0" GridPane.rowIndex="4"/>
-
-    <GridPane fx:id="constraintsGridPane" GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="5"/>
-
-    <Label text="Функция цели F(x):" GridPane.columnIndex="0" GridPane.rowIndex="6"/>
-
-    <GridPane fx:id="targetFunctionGridPane" GridPane.columnIndex="0" GridPane.columnSpan="3" GridPane.rowIndex="7"/>
-
-    <Button text="Вычислить" onAction="#onCalculateButtonClick" GridPane.columnIndex="1" GridPane.rowIndex="8" fx:id="calculateButton" visible="false"/>
-</GridPane>
+<?import javafx.collections.FXCollections?>
+<?import java.lang.String?>
+<VBox xmlns="http://javafx.com/javafx"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.justbelieveinmyself.mocf.FormController">
+    <HBox>
+        <Label text="Количество ограничений"/>
+        <TextField fx:id="constraintsInput"/>
+        <Label text="Количество переменных"/>
+        <TextField fx:id="variablesInput"/>
+        <Button text="Создать таблицу" onAction="#createTable"/>
+        <Button text="Симплекс таблица" onAction="#solveSimplex"/>
+    </HBox>
+    <TableView fx:id="table"/>
+    <HBox>
+        <Label text="Выберите метод"/>
+        <ComboBox fx:id="methodComboBox">
+            <items>
+                <FXCollections fx:factory="observableArrayList">
+                    <String fx:value="Функция Розенброка двумерная"/>
+                    <String fx:value="Функция Розенброка трёхмерная"/>
+                    <String fx:value="Функция Растригина двумерная"/>
+                    <String fx:value="Функция Растригина  трёхмерная"/>
+                </FXCollections>
+            </items>
+        </ComboBox>
+        <Button text="Посчитать минимум" onAction="#calculateMinimum"/>
+        <TextArea fx:id="resultTextArea"></TextArea>
+    </HBox>
+</VBox>
